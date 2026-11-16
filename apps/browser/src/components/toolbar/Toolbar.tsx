@@ -48,11 +48,17 @@ const toolbarTab = (t: Tab | undefined): ToolbarTab | undefined =>
 const isWebUrl = (url: string) => /^https?:/i.test(url);
 export const useToolbarTab = (tabId: string | undefined) => useTab(tabId, useShallow(toolbarTab));
 
-export const urlFieldRight = (inSplit: boolean, extensionsWidth: number, row: ToolbarRow) => (inSplit ? 12 + 2 * (row.button - 2) : 12) + extensionsWidth;
-const LOCK = { left: 7, width: 18, gap: space.xs } as const;
+const TOOLBAR_EDGE = 12;
+const EXTENSION_GROUP_PAD = 4;
+const FIELD_TO_EXTENSIONS = 8;
+const splitRoom = (inSplit: boolean, row: ToolbarRow) => (inSplit ? 2 * (row.button - 2) : 0);
+const extensionGroupWidth = (extensionsWidth: number) => (extensionsWidth ? extensionsWidth - 6 + 2 * EXTENSION_GROUP_PAD : 0);
+export const urlFieldRight = (inSplit: boolean, extensionsWidth: number, row: ToolbarRow) =>
+  TOOLBAR_EDGE + splitRoom(inSplit, row) + (extensionsWidth ? extensionGroupWidth(extensionsWidth) + FIELD_TO_EXTENSIONS : 0);
+const LOCK = { left: 10, width: 18, gap: space.xs } as const;
 const SIDEBAR_TEXT_GAP = 6;
 const SIDEBAR_TEXT_ALONE = space.ml;
-export const urlTextLeft = (insecure: boolean) => (insecure ? LOCK.left + LOCK.width + LOCK.gap : 8);
+export const urlTextLeft = (insecure: boolean) => (insecure ? LOCK.left + LOCK.width + LOCK.gap : 12);
 export const insecureLevel = (p: PageState) =>
   p.security && (p.security.level === "insecure" || p.security.level === "certificateError") ? p.security.level : null;
 
@@ -129,12 +135,26 @@ export function Toolbar({
         <HistoryButton place={at.back} tabId={tab.id} windowId={tab.windowId} direction={-1} disabled={!history.back} palette={palette} onFocus={focus} />
         <HistoryButton place={at.forward} tabId={tab.id} windowId={tab.windowId} direction={1} disabled={!history.forward} palette={palette} onFocus={focus} />
         <ReloadButton place={at.reload} tab={tab} loading={isLoading} palette={palette} onFocus={focus} />
-        <ToolbarExtensions tabId={tab.id} windowId={windowId} palette={palette} top={row.center - row.extensionButton / 2} right={(inSplit ? 8 + 2 * row.button : 8) + geometry.trailing} />
+        {extensionsWidth > 0 && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: row.center - row.field / 2,
+              right: TOOLBAR_EDGE + splitRoom(inSplit, row) + geometry.trailing,
+              width: extensionGroupWidth(extensionsWidth),
+              height: row.field,
+              borderRadius: row.fieldRadius,
+              backgroundColor: palette.pill,
+            }}
+          />
+        )}
+        <ToolbarExtensions tabId={tab.id} windowId={windowId} palette={palette} top={row.center - row.extensionButton / 2} right={TOOLBAR_EDGE + EXTENSION_GROUP_PAD + splitRoom(inSplit, row) + geometry.trailing} />
         {tab.url ? (
           <ToolbarUrlField tab={tab} palette={palette} windowId={windowId} inSplit={inSplit} loadFill={loadFill} onFocus={focus} style={urlStyle} />
         ) : null}
         {inSplit && (
-          <View style={{ position: "absolute", top: at.top, right: 8 + geometry.trailing, flexDirection: "row", gap: -space.xxs }}>
+          <View style={{ position: "absolute", top: at.top, right: TOOLBAR_EDGE + geometry.trailing, flexDirection: "row", gap: -space.xxs }}>
             <Button variant="icon" toolbar palette={palette} icon="rectangle.split.2x1" look="row" onPress={() => showSplitMenu(tab.id)} tooltip="Split View" />
             <Button variant="icon" toolbar palette={palette} icon="xmark" look="row" weight="medium" onPress={() => closePane(tab.id)} tooltip="Close Pane" />
           </View>
@@ -191,11 +211,14 @@ export const ToolbarUrlField = memo(function ToolbarUrlField({ tab, palette, win
   const field = useUrlField(tab, windowId, onFocus);
   const { insecure, hovered, buttonsShown, popover, toggleSiteControls } = field;
   const glass = useGlass();
+  const outlined = useSettings((s) => s.elementOutlines);
   const lockPress = usePressScaleMotion(!!insecure, buttonMotion.iconPressScale);
   const lockScaleStyle = lockPress.scale ? { transform: [{ scale: lockPress.scale }] } : undefined;
+  const fieldFill = glass ? undefined : hovered ? palette.hover : palette.pill;
+  const fieldEdge = outlined && !glass ? { borderWidth: StyleSheet.hairlineWidth, borderColor: palette.divider } : null;
 
   return (
-    <View {...field.hoverProps} style={[style, { flexDirection: "row", alignItems: "center", height: row.field, borderRadius: row.fieldRadius, backgroundColor: hovered && !glass ? palette.pill : undefined }]}>
+    <View {...field.hoverProps} style={[style, { flexDirection: "row", alignItems: "center", height: row.field, borderRadius: row.fieldRadius, backgroundColor: fieldFill }, fieldEdge]}>
       {glass ? (
         <GlassFill state={hovered ? "lit" : "rest"} radius={row.fieldRadius} dark={palette.background ? palette.text.startsWith(ink.white) : undefined} />
       ) : null}

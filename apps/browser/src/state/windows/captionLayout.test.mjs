@@ -97,18 +97,18 @@ test("on Windows a sidebar on the right keeps its header out from under the wind
 const place = (settings = {}, window = {}, frame = 9) => windowControlsPlace(state(settings, window), "w", frame, windows);
 
 test("on Windows the window buttons sit in the row that reaches the window's top right corner", () => {
-  assert.deepEqual(place(), { centerY: 30.2, size: 30, host: "toolbar" });
-  assert.deepEqual(place({ hideToolbarWhileScrolling: true }), { centerY: 30.2, size: 30, host: "toolbar" });
-  assert.deepEqual(place({ compactToolbar: true }), { centerY: 23, size: 22, host: "toolbar" });
-  assert.deepEqual(place({}, {}, 0), { centerY: 21.2, size: 30, host: "toolbar" });
-  assert.deepEqual(place({ autoHideTabs: true }, {}), { centerY: 30.2, size: 30, host: "toolbar" });
+  assert.deepEqual(place(), { centerY: 31, size: 30, host: "toolbar" });
+  assert.deepEqual(place({ hideToolbarWhileScrolling: true }), { centerY: 31, size: 30, host: "toolbar" });
+  assert.deepEqual(place({ compactToolbar: true }), { centerY: 26, size: 26, host: "toolbar" });
+  assert.deepEqual(place({}, {}, 0), { centerY: 22, size: 30, host: "toolbar" });
+  assert.deepEqual(place({ autoHideTabs: true }, {}), { centerY: 31, size: 30, host: "toolbar" });
   assert.deepEqual(place({ sidebarSide: "right" }), { centerY: 30, size: 30, host: "sidebar" });
-  assert.deepEqual(place({ sidebarSide: "right", autoHideTabs: true }, {}), { centerY: 30.2, size: 30, host: "toolbar" });
+  assert.deepEqual(place({ sidebarSide: "right", autoHideTabs: true }, {}), { centerY: 31, size: 30, host: "toolbar" });
   assert.deepEqual(place({ sidebarSide: "right", addressBar: "sidebar" }), { centerY: 24, size: 30, host: "sidebar" });
   assert.deepEqual(place({ addressBar: "sidebar" }), { centerY: 24, size: 30, host: "sidebar" });
   assert.deepEqual(place({ addressBar: "sidebar", autoHideTabs: true }), { centerY: 16, size: 26, host: "band" });
   assert.deepEqual(place({ tabLayout: "top" }), { centerY: 20.75, size: 30, host: "strip" });
-  assert.deepEqual(place({ tabLayout: "top", autoHideTabs: true }, {}), { centerY: 30.2, size: 30, host: "toolbar" });
+  assert.deepEqual(place({ tabLayout: "top", autoHideTabs: true }, {}), { centerY: 31, size: 30, host: "toolbar" });
   assert.deepEqual(place({}, { kind: "small" }), { centerY: 19, size: 28, host: "strip" });
   assert.equal(place({}, { fullScreen: true }), null);
   assert.equal(windowControlsPlace(state(), "missing", 9, windows), null);
@@ -128,10 +128,10 @@ const regions = (settings = {}, window = {}, extra = {}, overlaid = false) => ca
 const SPACER = [-169, 0, 144];
 
 test("on Windows the gap beside the window buttons and the gutter above the card are caption regions", () => {
-  assert.deepEqual(regions(), [[...SPACER, 45.2], [0, 0, 0, 9]]);
-  assert.deepEqual(regions({ compactToolbar: true }), [[...SPACER, 34], [0, 0, 0, 9]]);
-  assert.deepEqual(regions({ pageFrame: 0 }), [[...SPACER, 36.2]]);
-  assert.deepEqual(regions({ pageFrame: 12 }), [[...SPACER, 48.2], [0, 0, 0, 12]]);
+  assert.deepEqual(regions(), [[...SPACER, 46], [0, 0, 0, 9]]);
+  assert.deepEqual(regions({ compactToolbar: true }), [[...SPACER, 39], [0, 0, 0, 9]]);
+  assert.deepEqual(regions({ pageFrame: 0 }), [[...SPACER, 37]]);
+  assert.deepEqual(regions({ pageFrame: 12 }), [[...SPACER, 49], [0, 0, 0, 12]]);
   assert.deepEqual(regions({ sidebarSide: "right" }), [[...SPACER, 45], [0, 0, 0, 9]]);
   assert.deepEqual(regions({ sidebarSide: "right", addressBar: "sidebar" }), [[...SPACER, 39], [0, 0, 0, 7]]);
   assert.deepEqual(regions({ addressBar: "sidebar" }), [[144, 0, -46, 39], [0, 0, 0, 7]]);
@@ -281,7 +281,7 @@ test("the layouts around #1973 keep their window buttons where they were", () =>
   };
   assert.deepEqual(at({ addressBar: "sidebar", sidebarSide: "right" }), { place: { centerY: 24, size: 30, host: "sidebar" }, leading: false, row: 0 });
   assert.deepEqual(at({ sidebarSide: "right" }), { place: { centerY: 30, size: 30, host: "sidebar" }, leading: false, row: 0 });
-  assert.deepEqual(at({}), { place: { centerY: 30.2, size: 30, host: "toolbar" }, leading: false, row: 0 });
+  assert.deepEqual(at({}), { place: { centerY: 31, size: 30, host: "toolbar" }, leading: false, row: 0 });
   assert.deepEqual(at({ addressBar: "sidebar", autoHideTabs: true }), { place: { centerY: 16, size: 26, host: "band" }, leading: false, row: 0 }, "no sidebar showing and no toolbar: the band, as before");
   assert.deepEqual(at({ addressBar: "sidebar", tabLayout: "top" }).place.host, "strip");
   for (const [settings, host] of [[{}, "band"], [{ sidebarSide: "right" }, "sidebar"], [{ autoHideTabs: true }, "band"], [{ tabLayout: "top" }, "strip"], [{ tabLayout: "top", autoHideTabs: true }, "band"]]) {
