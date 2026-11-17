@@ -145,7 +145,7 @@ export function Toolbar({
               width: extensionGroupWidth(extensionsWidth),
               height: row.field,
               borderRadius: row.fieldRadius,
-              backgroundColor: palette.pill,
+              backgroundColor: palette.hover,
             }}
           />
         )}
@@ -214,8 +214,8 @@ export const ToolbarUrlField = memo(function ToolbarUrlField({ tab, palette, win
   const outlined = useSettings((s) => s.elementOutlines);
   const lockPress = usePressScaleMotion(!!insecure, buttonMotion.iconPressScale);
   const lockScaleStyle = lockPress.scale ? { transform: [{ scale: lockPress.scale }] } : undefined;
-  const fieldFill = glass ? undefined : hovered ? palette.hover : palette.pill;
-  const fieldEdge = outlined && !glass ? { borderWidth: StyleSheet.hairlineWidth, borderColor: palette.divider } : null;
+  const fieldFill = glass ? undefined : hovered ? palette.pressed : palette.hover;
+  const fieldEdge = glass ? null : { borderWidth: outlined ? 1 : StyleSheet.hairlineWidth, borderColor: palette.divider };
 
   return (
     <View {...field.hoverProps} style={[style, { flexDirection: "row", alignItems: "center", height: row.field, borderRadius: row.fieldRadius, backgroundColor: fieldFill }, fieldEdge]}>

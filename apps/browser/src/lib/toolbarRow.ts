@@ -12,7 +12,7 @@ export type ToolbarRow = {
 
 export const TOOLBAR_ROWS: Record<"regular" | "compact", ToolbarRow> = {
   regular: { height: 44, center: 22, button: 30, buttonRadius: 8, field: 34, fieldRadius: 10, fieldButton: 26, fieldButtonRadius: 7, extensionButton: 28 },
-  compact: { height: 34, center: 17, button: 26, buttonRadius: 7, field: 28, fieldRadius: 8, fieldButton: 22, fieldButtonRadius: 6, extensionButton: 24 },
+  compact: { height: 38, center: 19, button: 28, buttonRadius: 7, field: 30, fieldRadius: 9, fieldButton: 24, fieldButtonRadius: 6, extensionButton: 26 },
 };
 
 export const toolbarRowOf = (compact: boolean): ToolbarRow => (compact ? TOOLBAR_ROWS.compact : TOOLBAR_ROWS.regular);

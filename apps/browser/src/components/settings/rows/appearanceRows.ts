@@ -99,7 +99,7 @@ export const appearanceRows = {
         },
         compactToolbar: {
           title: "Compact toolbar",
-          description: "A 34 pt toolbar instead of the regular 44 pt, so the page gets more height. For the address bar in the toolbar and for tabs at the top.",
+          description: "A 38 pt toolbar instead of the regular 44 pt, so the page gets more height. For the address bar in the toolbar and for tabs at the top.",
           keywords: ["toolbar height", "smaller toolbar", "thin toolbar", "slim", "dense", "helium", "video", "16:9", "black bars", "url bar"],
         },
         addressBarButtons: {

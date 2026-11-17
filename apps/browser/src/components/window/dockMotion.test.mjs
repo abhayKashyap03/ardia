@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 globalThis.__DEV__ = false;
 const dm = { ...(await import("./dockMotion.ts")), ...(await import("./tokens.ts")), ...(await import("../../state/windows/dockMotion.ts")), ...(await import("./cardFrame.ts")) };
-const { PAGE_FRAME, pageFrameOf } = await import("../../lib/windowLayout.ts");
+const { CARD_INSET, PAGE_FRAME, pageFrameOf } = await import("../../lib/windowLayout.ts");
 const DEFAULT_PEEK = dm.cardFrameOf(PAGE_FRAME.default).peek;
 const { toolbarGeometry } = await import("./geometry.ts");
 const { useBrowser } = await import("../../state/browser/store.ts");
@@ -98,8 +98,8 @@ test("with the address field in the sidebar the lights sit on Arc's header row, 
 
 test("the sidebar's rows sit 9 pt from the window's edge and 9 pt from the card at the default frame; a thinner frame never pushes the card into the sidebar's own padding", async () => {
   const { layout } = await import("../ui/theme.ts");
-  assert.equal(PAGE_FRAME.default, 9);
-  assert.equal(layout.sidebarInset, PAGE_FRAME.default, "rows start where the frame's thickness ends");
+  assert.equal(PAGE_FRAME.default, 14);
+  assert.equal(layout.sidebarInset, CARD_INSET, "rows start where Dia's frame thickness ends");
   assert.equal(dm.dockedCardInset(190, 9) - (190 - layout.sidebarInset), 9);
   assert.equal(dm.dockedCardInset(190, 0), 190, "edge to edge: the card starts at the sidebar's edge");
   assert.equal(dm.dockedCardInset(190, 12), 193);

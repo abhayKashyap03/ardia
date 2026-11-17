@@ -14,7 +14,7 @@ export const shownSidebarWidth = (saved: number, windowWidth: number | null | un
 
 export const CARD_INSET = 9;
 
-export const PAGE_FRAME = { min: 0, max: 12, default: CARD_INSET } as const;
+export const PAGE_FRAME = { min: 0, max: 16, default: 14 } as const;
 
 const SPLIT_MIN_GAP = 2;
 const MIN_PEEK_GAP = 4;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PAGE_FRAME } from "../../lib/windowLayout.ts";
+import { CARD_INSET, PAGE_FRAME } from "../../lib/windowLayout.ts";
 import { ARC_LIGHTS_CENTER, LIGHTS_CENTER, toolbarLightsCenter } from "../../state/windows/dockMotion.ts";
 import { layout } from "../ui/theme.ts";
 const geometry = await import("./geometry.ts");
@@ -18,11 +18,11 @@ test("with the lights at their default place the header and the first row keep t
 
 test("compact, borderless and both lift the header and the first row with the lights", () => {
   const lift = (compact, frame) => layout.sidebarHeader - geometry.sidebarHeaderOf(false, toolbarLightsCenter(compact, frame)[1]);
-  assert.equal(lift(false, PAGE_FRAME.default), 0);
-  assert.equal(lift(true, PAGE_FRAME.default), 7);
+  assert.equal(lift(false, CARD_INSET), 0);
+  assert.equal(lift(true, CARD_INSET), 3);
   assert.equal(lift(false, 0), 9);
-  assert.equal(lift(true, 0), 16);
-  assert.equal(geometry.firstRowTopOf(false, toolbarLightsCenter(true, 0)[1]), layout.pinnedTop - 16);
+  assert.equal(lift(true, 0), 12);
+  assert.equal(geometry.firstRowTopOf(false, toolbarLightsCenter(true, 0)[1]), layout.pinnedTop - 12);
 });
 
 test("the first row sits as far below the lights as in the default layout, for every toolbar height and frame", () => {

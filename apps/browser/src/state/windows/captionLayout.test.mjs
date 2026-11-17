@@ -99,7 +99,7 @@ const place = (settings = {}, window = {}, frame = 9) => windowControlsPlace(sta
 test("on Windows the window buttons sit in the row that reaches the window's top right corner", () => {
   assert.deepEqual(place(), { centerY: 31, size: 30, host: "toolbar" });
   assert.deepEqual(place({ hideToolbarWhileScrolling: true }), { centerY: 31, size: 30, host: "toolbar" });
-  assert.deepEqual(place({ compactToolbar: true }), { centerY: 26, size: 26, host: "toolbar" });
+  assert.deepEqual(place({ compactToolbar: true }), { centerY: 28, size: 28, host: "toolbar" });
   assert.deepEqual(place({}, {}, 0), { centerY: 22, size: 30, host: "toolbar" });
   assert.deepEqual(place({ autoHideTabs: true }, {}), { centerY: 31, size: 30, host: "toolbar" });
   assert.deepEqual(place({ sidebarSide: "right" }), { centerY: 30, size: 30, host: "sidebar" });
@@ -129,7 +129,7 @@ const SPACER = [-169, 0, 144];
 
 test("on Windows the gap beside the window buttons and the gutter above the card are caption regions", () => {
   assert.deepEqual(regions(), [[...SPACER, 46], [0, 0, 0, 9]]);
-  assert.deepEqual(regions({ compactToolbar: true }), [[...SPACER, 39], [0, 0, 0, 9]]);
+  assert.deepEqual(regions({ compactToolbar: true }), [[...SPACER, 42], [0, 0, 0, 9]]);
   assert.deepEqual(regions({ pageFrame: 0 }), [[...SPACER, 37]]);
   assert.deepEqual(regions({ pageFrame: 12 }), [[...SPACER, 49], [0, 0, 0, 12]]);
   assert.deepEqual(regions({ sidebarSide: "right" }), [[...SPACER, 45], [0, 0, 0, 9]]);
