@@ -98,7 +98,7 @@ for commit in $(git rev-list --first-parent upstream/main | head -800); do
 done
 [ -n "$base" ] || { notify "No upstream commit with a downloadable engine; kept the current app."; exit 1; }
 
-mine=$(git rev-list --reverse --no-merges upstream/main..main)
+mine=$(git log --no-color --no-ext-diff --reverse --no-merges -p upstream/main..main | git patch-id --stable | awk '!seen[$1]++ { print $2 }')
 want=$(echo "$base $mine $(cat "$root/team" 2>/dev/null)" | shasum -a 256 | cut -c1-16)
 if [ "$force" = 0 ] && [ "$(cat "$root/built" 2>/dev/null)" = "$want" ] && [ -d "$app" ] && ! signature_expires_soon; then
   date +%s >"$root/last-sync"
@@ -108,13 +108,14 @@ fi
 
 git checkout -q -f -B daily "$base"
 for commit in $mine; do
-  if ! git cherry-pick "$commit" >/dev/null; then
-    git cherry-pick --abort
-    notify "Your change \"$(git log -1 --format=%s "$commit")\" doesn't apply on the newest buildable Ardia; kept the current app."
-    exit 1
+  git cherry-pick "$commit" >/dev/null 2>&1 && continue
+  if [ -z "$(git diff --name-only --diff-filter=U)" ] && git diff --cached --quiet; then
+    git cherry-pick --skip >/dev/null 2>&1 && continue
   fi
+  git cherry-pick --abort
+  notify "Your change \"$(git log -1 --format=%s "$commit")\" doesn't apply on the newest buildable Ardia; kept the current app."
+  exit 1
 done
-git push -q -f origin daily || true
 
 pnpm install --frozen-lockfile || { notify "pnpm install failed; kept the current app. Log: $log"; exit 1; }
 (cd apps/browser/macos && pod install) || { notify "pod install failed; kept the current app. Log: $log"; exit 1; }
