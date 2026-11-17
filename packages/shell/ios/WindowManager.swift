@@ -12,6 +12,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
   private var managed: [String: ManagedWindow] = [:]
   private var pending: [PendingOpen] = []
   private var lightsCenters: [String: (center: NSPoint, trailing: Bool)] = [:]
+  private var hostFitSizes: [String: CGSize] = [:]
+  private var landingFits: [String: LittleLandingFit] = [:]
   private var unreportedFrames = Set<ObjectIdentifier>()
   private weak var lastPlaced: NSWindow?
   private static let lastFrameKey = "ArdiaLastWindowFrame"
@@ -76,6 +78,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
 
   func open(id: String, _ options: OpenWindowOptions, focus: Bool) {
     if let existing = window(id) {
+      managed[id]?.display = options.display
       if focus { existing.makeKeyAndOrderFront(nil) }
       return
     }
@@ -115,7 +118,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
       observeDelegateNotifications(chromeWindow)
       if small { configureSmall(chromeWindow) }
       if small { LittleArdiaHandoff.shared.opened(id, linkFrom: options.returnTo) }
-      return show(entry, frame: frame, title: title, focus: focus, small: small, smallSize: options.size, smallPointer: options.pointer, behind: behind)
+      return show(entry, frame: frame, title: title, focus: focus, small: small, smallSize: options.size, smallPointer: options.pointer, behind: behind, display: options.display)
     }
     let window = makeWindow()
     let controller = NSViewController()
@@ -129,18 +132,19 @@ final class WindowManager: NSObject, NSWindowDelegate {
       configureSmall(window)
       LittleArdiaHandoff.shared.opened(id, linkFrom: options.returnTo)
     }
-    show(ManagedWindow(id: id, kind: kind, window: window), frame: frame, title: title, focus: focus, small: small, smallSize: options.size, smallPointer: options.pointer)
+    show(ManagedWindow(id: id, kind: kind, window: window), frame: frame, title: title, focus: focus, small: small, smallSize: options.size, smallPointer: options.pointer, display: options.display)
   }
 
   private func show(
     _ entry: ManagedWindow, frame: CGRect?, title: String, focus: Bool, small: Bool, smallSize: CGSize?, smallPointer: NSPoint?,
-    behind: String? = nil
+    behind: String? = nil, display: String? = nil
   ) {
     let window = entry.window, id = entry.id
+    entry.display = display
     if let lights = lightsCenters[id] { ChromeWindows.setTrafficLightsCenter(lights.center, trailing: lights.trailing, in: window) }
     window.title = title
     Self.identify(window, id: id, kind: entry.kind)
-    if small, frame == nil { placeSmall(window, size: smallSize, pointer: smallPointer) } else if frame != nil || !window.isVisible { place(window, frame: frame) }
+    if small, frame == nil { placeSmall(window, id: id, size: smallSize, pointer: smallPointer) } else if frame != nil || !window.isVisible { place(window, frame: frame, display: display) }
     relayoutRoot(window)
     managed[id] = entry
     if !small { lastPlaced = window }
@@ -170,7 +174,22 @@ final class WindowManager: NSObject, NSWindowDelegate {
     if small, focus, smallPointer != nil { linkActivation.openedFromLink(window) }
     observeFrame(window)
     reportFrame(window)
+    if small { fitToLanding(entry) }
     fullScreen.windowShown(id)
+  }
+
+  private func fitToLanding(_ entry: ManagedWindow) {
+    let id = entry.id
+    landingFits[id]?.stop()
+    let landing = LittleLandingFit(window: { [weak self] in self?.window(id) }) { [weak self] window, frame in
+      guard let self else { return }
+      self.hostFitSizes[id] = frame.size
+      window.setFrame(frame, display: true)
+      self.reportFrame(window)
+    }
+    landingFits[id] = landing
+    landing.start()
+    if entry.isWaitingToReveal { entry.whenRevealed { [weak landing] in landing?.fit() } }
   }
 
   private func reveal(_ entry: ManagedWindow) {
@@ -215,6 +234,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
       NotificationCenter.default.addObserver(self, selector: #selector(frameChanged(_:)), name: name, object: window)
     }
     NotificationCenter.default.addObserver(self, selector: #selector(sizeChanged(_:)), name: NSWindow.didResizeNotification, object: window)
+    NotificationCenter.default.addObserver(self, selector: #selector(screenChanged(_:)), name: NSWindow.didChangeScreenNotification, object: window)
     for name in [NSWindow.didEnterFullScreenNotification, NSWindow.didExitFullScreenNotification] {
       NotificationCenter.default.addObserver(self, selector: #selector(fullScreenChanged(_:)), name: name, object: window)
     }
@@ -316,7 +336,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     window.collectionBehavior.insert(.moveToActiveSpace)
   }
 
-  private func placeSmall(_ window: NSWindow, size: CGSize?, pointer: NSPoint?) {
+  private func placeSmall(_ window: NSWindow, id: String, size: CGSize?, pointer: NSPoint?) {
     let mouse = pointer ?? NSEvent.mouseLocation
     let screen = (pointer == nil && NSApp.isActive ? NSApp.keyWindow?.screen : nil)
       ?? NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
@@ -325,12 +345,21 @@ final class WindowManager: NSObject, NSWindowDelegate {
     let height = min(max(size?.height ?? 640, window.minSize.height), visible.height)
     let origin = NSPoint(x: (visible.midX - width / 2).rounded(), y: (visible.midY - height / 2).rounded())
     window.setFrame(NSRect(origin: origin, size: NSSize(width: width.rounded(), height: height.rounded())), display: false)
+    hostFitSizes[id] = window.frame.size
   }
 
-  private func place(_ window: NSWindow, frame: CGRect?) {
+  func moveToSavedDisplay(_ id: String) {
+    guard let entry = managed[id], !entry.window.styleMask.contains(.fullScreen),
+          let screen = ArdiaDisplayIdentity.screen(withIdentifier: entry.display), entry.window.screen !== screen
+    else { return }
+    entry.window.setFrame(ArdiaDisplayIdentity.frame(entry.window.frame, on: screen), display: false)
+  }
+
+  private func place(_ window: NSWindow, frame: CGRect?, display: String? = nil) {
     if let frame {
-      window.setFrame(frame, display: false)
-      if let screen = window.screen ?? NSScreen.main {
+      let saved = ArdiaDisplayIdentity.screen(withIdentifier: display)
+      window.setFrame(saved.map { ArdiaDisplayIdentity.frame(frame, on: $0) } ?? frame, display: false)
+      if let screen = saved ?? window.screen ?? NSScreen.main {
         window.setFrame(window.constrainFrameRect(window.frame, to: screen), display: false)
       }
     } else if let source = [NSApp.keyWindow, NSApp.mainWindow, lastPlaced].compactMap({ $0 }).first(where: { isMainWindow($0) })
@@ -401,6 +430,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
 
   private func forget(_ entry: ManagedWindow) {
     LittleArdiaHandoff.shared.forget(entry.id)
+    hostFitSizes[entry.id] = nil
+    landingFits.removeValue(forKey: entry.id)?.stop()
     entry.stopWatchingContent()
     lightsCenters[entry.id] = nil
     entry.takeReveal()?.then.forEach { $0() }
@@ -469,9 +500,19 @@ final class WindowManager: NSObject, NSWindowDelegate {
     if entered { fullScreen.entered(id) }
   }
 
+  @objc private func screenChanged(_ notification: Notification) {
+    guard let window = notification.object as? NSWindow, window.styleMask.contains(.fullScreen), let id = id(of: window),
+          managed[id]?.isFullScreen == true, isMainWindow(window)
+    else { return }
+    sendFullScreen(window, id: id, on: true)
+  }
+
   private func sendFullScreen(_ window: NSWindow, id: String, on: Bool) {
     guard isMainWindow(window) else { return }
-    ShellEvents.send(.window, ["type": "fullScreen", "id": id, "on": on && !ArdiaChromeWindowHost.windowFullScreenIs(forPage: window)])
+    let on = on && !ArdiaChromeWindowHost.windowFullScreenIs(forPage: window)
+    var body: [String: Any] = ["type": "fullScreen", "id": id, "on": on]
+    if on, let display = ArdiaDisplayIdentity.identifier(of: window.screen) { body["display"] = display }
+    ShellEvents.send(.window, body)
   }
 
   private static let resizeReportDelay: TimeInterval = 0.25
@@ -531,6 +572,12 @@ final class WindowManager: NSObject, NSWindowDelegate {
       UserDefaults.standard.set(lastFrame, forKey: Self.lastFrameKey)
     }
     let f = window.frame
-    ShellEvents.send(.window, ["type": "frame", "id": id, "frame": [f.minX, f.minY, f.width, f.height]])
+    var event: [String: Any] = ["type": "frame", "id": id, "frame": [f.minX, f.minY, f.width, f.height]]
+    if hostFitSizes[id] == f.size {
+      event["fitted"] = true
+    } else {
+      hostFitSizes[id] = nil
+    }
+    ShellEvents.send(.window, event)
   }
 }

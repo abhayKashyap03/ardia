@@ -109,36 +109,6 @@ export const generalRows = {
       },
     },
   ],
-  profiles: [
-    { section: "New windows open with", rows: { defaultProfile: { title: "Default profile", description: "Used for new windows. Links from other apps open in the profile you used last.", keywords: ["new window"] } } },
-    {
-      section: "Shared data",
-      rows: {
-        shareTopApps: {
-          title: "Share Top Apps",
-          description:
-            "Profiles that share browsing data can show the same Top Apps, each one a single page you pick up where you left it in any of them. Pick which ones take part. A profile with its own data keeps its own Top Apps, since its logins and cookies are separate.",
-          keywords: ["pinned tabs", "favorites", "essentials", "spaces", "shared"],
-        },
-      },
-    },
-    {
-      section: "Profile switcher",
-      rows: {
-        showProfileDots: {
-          title: "Show profile dots",
-          description: `The dots at the bottom of the sidebar that switch profiles. Swiping and ${keyText("⌃1")}–${keyText("⌃9")} still work.`,
-          keywords: ["dots", "pager", "profile switcher", "page dots", "sidebar footer", "hide"],
-        },
-        switcherIcons: {
-          title: "Show profile icons instead of dots",
-          description: "As in Arc: the switcher at the bottom of the sidebar shows each profile's symbol or emoji, and a profile without one keeps its dot. Right-click the switcher to pick an icon.",
-          keywords: ["spaces", "space icons", "profile dots", "switcher", "emoji", "symbol", "sidebar footer", "arc"],
-        },
-      },
-    },
-    { section: "Profiles", rows: { list: { title: "Profiles", description: `Drag to reorder. ${keyText("⌃1")}–${keyText("⌃9")} switch to the first nine.`, keywords: ["create profile", "new profile", "delete profile", "reorder", "work", "personal"] } } },
-  ],
   sync: [
     {
       section: "Sync",
@@ -221,10 +191,20 @@ export const generalRows = {
           description: "Rest the pointer on a tab or Top App and a card shows its title, address, and Pin, Bookmark, Split and Reset. Off, resting on a tab, in the sidebar or the top tab strip, shows only its full title and site as a plain tooltip, and every one of those actions is in the tab's right-click menu. A playing tab's mini player still shows.",
           keywords: ["hover", "hover card", "popup", "pop-up", "tooltip", "tab actions", "reset", "distracting", "dia"],
         },
+        showFullUrlInTabHoverMenu: {
+          title: "Show full address in tab hover menu",
+          description: "The tab hover menu shows the tab's whole address under its title. Off, it shows only the site's domain.",
+          keywords: ["hover", "hover card", "popup", "url", "address", "link", "domain", "full url", "path"],
+        },
         closedTopAppTiles: {
           title: "Draw tiles for closed Top Apps",
           description: "As in Dia, every Top App sits on a tile. Off, a Top App whose page isn't open shows just its icon, faded, so you can tell at a glance which ones are open; it gets its tile back when you open it or point at it.",
           keywords: ["pinned tiles", "favorites", "top apps", "tile", "tiles", "background", "closed", "open", "unloaded", "faded", "contrast", "prominent", "quiet", "subtle", "dia"],
+        },
+        topAppFolders: {
+          title: "Make folders in Top Apps",
+          description: "Hold a Top App over another for a moment, or pick New Folder… in its menu, to put several in one tile. Off, as in Dia, Top Apps don't make folders; folders you already have keep working.",
+          keywords: ["folder", "folders", "top apps", "pinned tiles", "favorites", "group", "tile folder", "stack"],
         },
         fadeUnloadedTabs: {
           advanced: true,
@@ -389,4 +369,4 @@ export const generalRows = {
       },
     },
   ],
-} satisfies Pick<Record<SettingsPane, SettingSection[]>, "general" | "profiles" | "sync" | "tabs">;
+} satisfies Pick<Record<SettingsPane, SettingSection[]>, "general" | "sync" | "tabs">;

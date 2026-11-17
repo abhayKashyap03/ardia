@@ -6,7 +6,7 @@ import { useBrowser } from "../browser/store";
 import { MAX_DRAFT_LINKS } from "../groups/draftGroups";
 import { createProfile } from "../profiles/actions";
 import { noteImportedSpaces } from "../telemetry/usage";
-import { noteImportRun } from "../telemetry/importRuns";
+import { noteDiaTabProfiles, noteImportRun } from "../telemetry/importRuns";
 import {
   applyResult,
   emptyCounts,
@@ -22,7 +22,7 @@ import {
   type ImportKind,
   type ImportResult,
 } from "./apply";
-import { diaProfilesFor } from "./diaTabs";
+import { diaProfilesFor, diaProfilesWithoutFolder } from "./diaTabs";
 import { planSidebar } from "./sidebarPlan";
 import {
   APP_TAB_KINDS,
@@ -228,6 +228,16 @@ export async function runImport(wanted: ReadonlySet<ImportKind>, withoutKey = fa
   if (appTabsResult) {
     const note = "note" in appTabsResult ? appTabsResult.note : null;
     if (note) left.push(note);
+    if ("result" in appTabsResult) {
+      const kinds = { pinned: wanted.has("pinnedTabs"), open: wanted.has("tabs") };
+      const extra = diaProfilesWithoutFolder(appTabsResult.result, source.profiles, kinds);
+      for (const dia of extra) {
+        const dest = await nextDestination(dia.name);
+        if (signal.aborted) return;
+        total.tabs += importDiaProfile(dest, dia, kinds, appTabsResult.result.favicons);
+      }
+      noteDiaTabProfiles({ matched: diaProfilesFor(appTabsResult.result, source.profiles).size, withoutFolder: extra.length });
+    }
     updateStatus(signal, (st) => ({ ...st, ...Object.fromEntries(fromApp.map((k) => [k, note ? "failed" : "done"])) }));
   }
   updateStatus(signal, (st) => Object.fromEntries(Object.entries(st).map(([k, v]) => [k, failed.has(k as ImportKind) ? "failed" : v === "failed" ? v : "done"])));

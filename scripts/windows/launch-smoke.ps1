@@ -2,7 +2,7 @@ param(
   [Parameter(Mandatory = $true)][string]$App,
   [Parameter(Mandatory = $true)][string]$Out,
   [int]$Seconds = 25,
-  [int]$SelfCheckSeconds = 120,
+  [int]$SelfCheckSeconds = 300,
   [switch]$NoInput,
   [ValidateSet("all", "launch", "gate")][string]$Part = "all"
 )
@@ -448,6 +448,22 @@ param([int]$Port, [string]$Log)
 $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
 $listener.Start()
 $held = [System.Collections.Generic.List[object]]::new()
+$rate = 8000
+$count = $rate * 2
+$wav = [byte[]]::new(44 + 2 * $count)
+[System.Text.Encoding]::ASCII.GetBytes("RIFF").CopyTo($wav, 0)
+[BitConverter]::GetBytes([int](36 + 2 * $count)).CopyTo($wav, 4)
+[System.Text.Encoding]::ASCII.GetBytes("WAVEfmt ").CopyTo($wav, 8)
+[BitConverter]::GetBytes([int]16).CopyTo($wav, 16)
+[BitConverter]::GetBytes([int16]1).CopyTo($wav, 20)
+[BitConverter]::GetBytes([int16]1).CopyTo($wav, 22)
+[BitConverter]::GetBytes([int]$rate).CopyTo($wav, 24)
+[BitConverter]::GetBytes([int](2 * $rate)).CopyTo($wav, 28)
+[BitConverter]::GetBytes([int16]2).CopyTo($wav, 32)
+[BitConverter]::GetBytes([int16]16).CopyTo($wav, 34)
+[System.Text.Encoding]::ASCII.GetBytes("data").CopyTo($wav, 36)
+[BitConverter]::GetBytes([int](2 * $count)).CopyTo($wav, 40)
+for ($i = 0; $i -lt $count; $i++) { [BitConverter]::GetBytes([int16]([Math]::Sin($i * 0.345) * 3000)).CopyTo($wav, 44 + 2 * $i) }
 while ($true) {
   $client = $listener.AcceptTcpClient()
   $keep = $false
@@ -474,6 +490,25 @@ while ($true) {
       $keep = $true
       continue
     }
+    if (($path -replace '\?.*$', '') -eq "/tone.wav") {
+      $head = [System.Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK`r`nContent-Type: audio/wav`r`nContent-Length: $($wav.Length)`r`nConnection: close`r`n`r`n")
+      $stream.Write($head, 0, $head.Length)
+      $stream.Write($wav, 0, $wav.Length)
+      $stream.Flush()
+      continue
+    }
+    if (($path -replace '\?.*$', '') -eq "/clobber") {
+      $first = [System.Text.Encoding]::UTF8.GetBytes("<!doctype html><meta charset=utf-8><title>clobber page</title><div id=ardiaAutoplayGuard></div>")
+      $rest = [System.Text.Encoding]::UTF8.GetBytes("<video id=m src='/tone.wav' autoplay muted loop></video><script>window.tries = ['attribute'];</script>")
+      $head = [System.Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK`r`nContent-Type: text/html; charset=utf-8`r`nContent-Length: $($first.Length + $rest.Length)`r`nConnection: close`r`n`r`n")
+      $stream.Write($head, 0, $head.Length)
+      $stream.Write($first, 0, $first.Length)
+      $stream.Flush()
+      Start-Sleep -Milliseconds 1000
+      $stream.Write($rest, 0, $rest.Length)
+      $stream.Flush()
+      continue
+    }
     if (($path -replace '\?.*$', '') -eq "/download.bin") {
       $file = [System.Text.Encoding]::ASCII.GetBytes("ardia blank check")
       $head = [System.Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK`r`nContent-Type: application/octet-stream`r`nContent-Disposition: attachment; filename=ardia-blank-check.bin`r`nContent-Length: $($file.Length)`r`nConnection: close`r`n`r`n")
@@ -482,9 +517,9 @@ while ($true) {
       $stream.Flush()
       continue
     }
-    $name = @{ "/a" = "a"; "/b" = "b"; "/hover" = "hover"; "/sleep" = "sleep"; "/links" = "links"; "/drag" = "drag"; "/event/hovered" = "event"; "/event/left" = "event"; "/event/pressed" = "event"; "/event/selected" = "event"; "/event/released" = "event"; "/event/dragstart" = "event"; "/event/fullscreen" = "event"; "/event/windowed" = "event"; "/event/local-state-start" = "event"; "/event/local-state-stop" = "event" }[$($path -replace '\?.*$', '')]
+    $name = @{ "/a" = "a"; "/b" = "b"; "/hover" = "hover"; "/sleep" = "sleep"; "/links" = "links"; "/drag" = "drag"; "/media" = "media"; "/framed" = "framed"; "/event/hovered" = "event"; "/event/left" = "event"; "/event/pressed" = "event"; "/event/selected" = "event"; "/event/released" = "event"; "/event/dragstart" = "event"; "/event/fullscreen" = "event"; "/event/windowed" = "event"; "/event/local-state-start" = "event"; "/event/local-state-stop" = "event" }[$($path -replace '\?.*$', '')]
     $status = if ($name -eq "event") { "204 No Content" } elseif ($name) { "200 OK" } else { "404 Not Found" }
-    $text = if ($name -eq "event") { "" } elseif ($name -eq "links") { "<!doctype html><meta charset=utf-8><title>links page</title><style>body{margin:0}a{position:absolute;left:10px;width:200px;height:40px;display:block;background:#ddd}</style><a id=peek style='top:10px' href='/a'>peek</a><a id=blank style='top:70px' target=_blank href='/b'>blank</a><a id=app style='top:130px' href='ardia-sleep-check-link:woke'>app</a>" } elseif ($name -eq "sleep") { "<!doctype html><meta charset=utf-8><title>sleep page</title><body style='margin:0;height:6000px'><input id=field></body>" } elseif ($name -eq "drag") { "<!doctype html><meta charset=utf-8><title>drag page</title><style>body{margin:0;font:18px sans-serif}#words{position:absolute;left:40px;top:120px;width:560px;margin:0}#link{position:absolute;left:40px;top:240px}#full{position:absolute;left:40px;top:320px;width:160px;height:40px}</style><p id=words>Plain words to select by dragging across them, plain words to select by dragging across them.</p><a id=link href='/a'>a link to drag</a><button id=full>full screen</button><script>const report = (name) => fetch('/event/' + name); addEventListener('mousedown', () => report('pressed')); addEventListener('mouseup', () => report(getSelection().toString().length > 0 ? 'selected' : 'released')); addEventListener('dragstart', () => report('dragstart')); document.getElementById('full').addEventListener('click', (event) => { event.stopPropagation(); document.documentElement.requestFullscreen(); }); addEventListener('fullscreenchange', () => report(document.fullscreenElement ? 'fullscreen' : 'windowed'));</script>" } elseif ($name -eq "hover") { "<!doctype html><meta charset=utf-8><title>ready</title><style>body{margin:0}#strip{height:160px;background:#ddd}</style><div id=strip>hover strip</div><script>const strip = document.getElementById('strip'); strip.addEventListener('mouseenter', () => { document.title = 'hovered'; fetch('/event/hovered'); }); strip.addEventListener('mouseleave', () => { document.title = 'left'; fetch('/event/left'); });</script>" } elseif ($name) { "<!doctype html><meta charset=utf-8><p>cached page $name</p><script>addEventListener('pageshow', (event) => { document.title = (event.persisted ? 'restored ' : 'loaded ') + '$name'; });</script>" } else { "" }
+    $text = if ($name -eq "event") { "" } elseif ($name -eq "links") { "<!doctype html><meta charset=utf-8><title>links page</title><style>body{margin:0}a{position:absolute;left:10px;width:200px;height:40px;display:block;background:#ddd}</style><a id=peek style='top:10px' href='/a'>peek</a><a id=blank style='top:70px' target=_blank href='/b'>blank</a><a id=app style='top:130px' href='ardia-sleep-check-link:woke'>app</a>" } elseif ($name -eq "sleep") { "<!doctype html><meta charset=utf-8><title>sleep page</title><body style='margin:0;height:6000px'><input id=field></body>" } elseif ($name -eq "drag") { "<!doctype html><meta charset=utf-8><title>drag page</title><style>body{margin:0;font:18px sans-serif}#words{position:absolute;left:40px;top:120px;width:560px;margin:0}#link{position:absolute;left:40px;top:240px}#full{position:absolute;left:40px;top:320px;width:160px;height:40px}</style><p id=words>Plain words to select by dragging across them, plain words to select by dragging across them.</p><a id=link href='/a'>a link to drag</a><button id=full>full screen</button><script>const report = (name) => fetch('/event/' + name); addEventListener('mousedown', () => report('pressed')); addEventListener('mouseup', () => report(getSelection().toString().length > 0 ? 'selected' : 'released')); addEventListener('dragstart', () => report('dragstart')); document.getElementById('full').addEventListener('click', (event) => { event.stopPropagation(); document.documentElement.requestFullscreen(); }); addEventListener('fullscreenchange', () => report(document.fullscreenElement ? 'fullscreen' : 'windowed'));</script>" } elseif ($name -eq "media") { "<!doctype html><meta charset=utf-8><title>media page</title><style>body{margin:0}#m{width:160px;height:90px}#go{position:absolute;left:0;top:100px;width:200px;height:60px}#next{position:absolute;left:0;top:170px;width:200px;height:30px;display:block;background:#ddd}</style><video id=m src='/tone.wav' loop></video><button id=go>play</button><a id=next href='/media?second'>next</a><script>const m = document.getElementById('m'); if (location.search.includes('muted')) m.muted = true; window.tries = []; const attempt = () => m.play().then(() => 'played', (error) => error.name).then((result) => tries.push(result)); if (location.search.includes('auto')) attempt(); const burst = () => { for (let i = 0; i < 25; i++) new Audio().play().catch(() => {}); }; if (location.search.includes('burst')) burst(); if (location.search.includes('again')) addEventListener('pageshow', (event) => { if (event.persisted) burst(); }); if (location.search.includes('session')) navigator.mediaSession.setActionHandler('play', () => attempt()); if (location.search.includes('touchplay')) addEventListener('pointerdown', (event) => { if (event.pointerType === 'touch') attempt(); }); document.getElementById('go').addEventListener('click', attempt); addEventListener('message', (event) => { if (event.data === 'play-muted') { m.muted = true; attempt(); } if (event.data === 'play-again') attempt(); }); if (parent !== window) setInterval(() => parent.postMessage({ paused: m.paused, time: m.currentTime, tries, active: !!(navigator.userActivation && navigator.userActivation.hasBeenActive) }, '*'), 200);</script>" } elseif ($name -eq "framed") { "<!doctype html><meta charset=utf-8><title>framed page</title><style>body{margin:0}iframe{width:280px;height:200px;border:0}</style><body><script>window.frameState = null; window.restored = false; addEventListener('message', (event) => { frameState = event.data; }); window.showPlay = null; addEventListener('pageshow', (event) => { restored = event.persisted; const shows = Number(sessionStorage.getItem('ardia-shows') || 0) + 1; sessionStorage.setItem('ardia-shows', String(shows)); if (shows > 1 && location.search.includes('showplay')) Object.assign(document.createElement('video'), { muted: true, loop: true, src: '/tone.wav' }).play().then(() => 'played', (error) => error.name).then((result) => { showPlay = result; }); }); if (location.search.includes('burst')) for (let i = 0; i < 25; i++) new Audio().play().catch(() => {}); const frame = document.createElement('iframe'); frame.allow = 'autoplay'; frame.src = (location.search.includes('same') ? location.origin : 'http://localhost:$Port') + '/media' + (location.search.includes('burst') ? '?again' : location.search.includes('quiet') ? '' : '?auto-muted'); document.body.append(frame);</script>" } elseif ($name -eq "hover") { "<!doctype html><meta charset=utf-8><title>ready</title><style>body{margin:0}#strip{height:160px;background:#ddd}</style><div id=strip>hover strip</div><script>const strip = document.getElementById('strip'); strip.addEventListener('mouseenter', () => { document.title = 'hovered'; fetch('/event/hovered'); }); strip.addEventListener('mouseleave', () => { document.title = 'left'; fetch('/event/left'); });</script>" } elseif ($name) { "<!doctype html><meta charset=utf-8><p>cached page $name</p><script>addEventListener('pageshow', (event) => { document.title = (event.persisted ? 'restored ' : 'loaded ') + '$name'; });</script>" } else { "" }
     $body = [System.Text.Encoding]::UTF8.GetBytes($text)
     $head = [System.Text.Encoding]::ASCII.GetBytes("HTTP/1.1 $status`r`nContent-Type: text/html; charset=utf-8`r`nContent-Length: $($body.Length)`r`nConnection: close`r`n`r`n")
     $stream.Write($head, 0, $head.Length)

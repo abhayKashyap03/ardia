@@ -115,9 +115,13 @@ export async function loadUnpacked(windowId: string, profile = extensionProfile(
   return true;
 }
 
+const STALE_PROMPT = "This install request has closed. Open the extension's page in the Chrome Web Store and add it again.";
+
+const declinePrompt = (requestId: string) => void resolveExtensionInstallPrompt(requestId, false).catch(() => {});
+
 export function showInstallPrompt(windowId: string, prompt: ExtensionInstallPrompt) {
   const current = useExtensions.getState().install;
-  if (current?.status === "prompt") void resolveExtensionInstallPrompt(current.prompt.requestId, false);
+  if (current?.status === "prompt") declinePrompt(current.prompt.requestId);
   else cancelInstall();
   useExtensions.setState({ install: { windowId, profile: prompt.profile, source: "webStore", status: "prompt", prompt } });
 }
@@ -126,7 +130,14 @@ export async function confirmInstall() {
   const request = useExtensions.getState().install;
   if (request?.status === "prompt") {
     useExtensions.setState({ install: null });
-    await resolveExtensionInstallPrompt(request.prompt.requestId, true);
+    try {
+      await resolveExtensionInstallPrompt(request.prompt.requestId, true);
+    } catch (error) {
+      if (useExtensions.getState().install) return;
+      const stale = (error as { code?: unknown } | null)?.code === "ERR_EXTENSION_PROMPT_STALE";
+      useExtensions.setState({ install: { windowId: request.windowId, profile: request.profile, source: request.source, status: "error", error: stale ? STALE_PROMPT : errorText(error) } });
+      return;
+    }
     for (const ms of [1500, 5000]) setTimeout(() => void refreshExtensions(request.profile), ms);
     return;
   }
@@ -145,7 +156,7 @@ export async function confirmInstall() {
 export function cancelInstall() {
   const request = useExtensions.getState().install;
   if (!request) return;
-  if (request.status === "prompt") void resolveExtensionInstallPrompt(request.prompt.requestId, false);
+  if (request.status === "prompt") declinePrompt(request.prompt.requestId);
   useExtensions.setState({ install: null });
 }
 

@@ -190,6 +190,7 @@ test("the sync module keeps device ids local and sends every other call as a typ
   assert.match(syncModuleMethod(host, "ArdiaSync", "newDeviceId")(), /^[a-z2-7]{26}$/);
   assert.equal(newSyncDeviceId((bytes) => bytes.fill(0)), "aaaaaaaaaaaaaaaaaaaaaaaaaa");
   assert.equal(syncModuleMethod(host, "ArdiaSync", "nope"), undefined);
+  assert.equal(resolveHostModule(host, "ArdiaSync", "takeFileCounts"), null, "the hourly sync file counts are a Windows placeholder count Linux has none of, so the optional method is absent instead of a host call that rejects");
   await resolveHostModule(host, "ArdiaSync", "folderInfo")(undefined);
   await resolveHostModule(host, "ArdiaSync", "enterPhrase")("aaaaaaaaaaaaaaaaaaaaaaaaaa", PHRASE, "/sync");
   assert.deepEqual(host.calls, [
