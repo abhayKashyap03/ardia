@@ -2,7 +2,7 @@
 set -uo pipefail
 
 usage="usage: update.sh [--force] [--install-only]
-Keeps /Applications/Ardia Fork.app current. Once a week it merges mantrakp04/ardia into your fork's main and pushes it,
+Keeps /Applications/Ardia Fork.app current. Every 3 days it merges mantrakp04/ardia into your fork's main and pushes it,
 rebuilds the daily branch on the newest upstream commit whose engine has a download, replays your fork's own commits on
 top, builds it signed with your Xcode team, and installs it while the app is closed. Every run installs a waiting build.
 Merges and cherry-picks commit with your global git name and email.
@@ -70,7 +70,7 @@ install_pending
 [ "$install_only" = 1 ] && exit 0
 
 last_sync=$(cat "$root/last-sync" 2>/dev/null || echo 0)
-if [ "$force" = 0 ] && [ $(($(date +%s) - last_sync)) -lt $((6 * 86400)) ] && ! signature_expires_soon; then
+if [ "$force" = 0 ] && [ $(($(date +%s) - last_sync)) -lt $((3 * 86400 - 3600)) ] && ! signature_expires_soon; then
   echo "nothing due (last sync $(date -r "$last_sync" 2>/dev/null))"
   exit 0
 fi

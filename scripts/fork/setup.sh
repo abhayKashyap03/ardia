@@ -4,7 +4,7 @@ set -euo pipefail
 usage="usage: bash setup.sh [--remigrate]
 One-time setup of Ardia Fork as your daily browser: builds your fork into /Applications/Ardia Fork.app signed with your
 Xcode team, copies your profile from the installed Ardia (tabs, history, passwords, cookies, extensions, settings),
-and installs a daily launchd check that runs the weekly sync and update (~/.ardia-fork/update.sh).
+and installs a daily launchd check that runs the sync and update every 3 days (~/.ardia-fork/update.sh).
 --remigrate  copy the original Ardia's data again, keeping the fork's current data as a dated backup
 Set ARDIA_TEAM_ID to pick a team when Xcode is signed in to more than one."
 
@@ -122,7 +122,7 @@ cat >"$agent" <<PLIST
 PLIST
 launchctl bootout "gui/$(id -u)/$agent_label" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "$agent"
-echo "runs daily at 3:30 and at login; syncs and rebuilds weekly, installs a waiting build whenever the app is closed"
+echo "runs daily at 3:30 and at login; syncs and rebuilds every 3 days, installs a waiting build whenever the app is closed"
 
 say "Opening Ardia Fork"
 open "$app"
