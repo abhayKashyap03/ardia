@@ -31,7 +31,7 @@ def config_home(absolute: bool = False) -> Path:
 
 def installed_data_dir(linux: bool | None = None) -> Path:
     if not (LINUX if linux is None else linux):
-        return Path.home() / "Library" / "Application Support" / "com.ardia.browser"
+        return Path.home() / "Library" / "Application Support" / "com.abhaykashyap.ardia"
     override = os.environ.get("ARDIA_CONFIG_HOME")
     return (Path(override) if override else config_home()) / "ardia"
 

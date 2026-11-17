@@ -66,9 +66,9 @@ class DataDir(unittest.TestCase):
             self.assertIn(f"({endpoint.LINUX_DATA_DIR_SHOWN}).", scripts_cli.ENDPOINT_EPILOG)
         self.assertEqual(automation_cli.agent_words(linux=True)["config_folder"], f"{endpoint.LINUX_DATA_DIR_SHOWN}/config")
 
-    def test_macos_data_dir_is_unchanged(self):
+    def test_macos_data_dir_is_the_forks(self):
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": str(self.temp / "xdg")}):
-            self.assertEqual(endpoint.installed_data_dir(linux=False), self.home / "Library" / "Application Support" / "com.ardia.browser")
+            self.assertEqual(endpoint.installed_data_dir(linux=False), self.home / "Library" / "Application Support" / "com.abhaykashyap.ardia")
         self.assertEqual(endpoint.chromium_dir(self.temp, linux=False), self.temp / "Chromium")
         self.assertEqual(endpoint.chromium_dir(self.temp, linux=True), self.temp)
 
