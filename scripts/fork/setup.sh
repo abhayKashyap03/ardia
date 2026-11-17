@@ -1,17 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
-usage="usage: bash setup.sh [--remigrate]
+usage="usage: bash setup.sh [--remigrate] [--rebuild]
 One-time setup of Ardia Fork as your daily browser: builds your fork into /Applications/Ardia Fork.app signed with your
 Xcode team, copies your profile from the installed Ardia (tabs, history, passwords, cookies, extensions, settings),
 and installs a daily launchd check that runs the sync and update every 3 days (~/.ardia-fork/update.sh).
 --remigrate  copy the original Ardia's data again, keeping the fork's current data as a dated backup
+--rebuild    build again even when Ardia Fork is already installed
 Set ARDIA_TEAM_ID to pick a team when Xcode is signed in to more than one."
 
-remigrate=0
+remigrate=0 rebuild=0
 for arg in "$@"; do
   case "$arg" in
     --remigrate) remigrate=1 ;;
+    --rebuild) rebuild=1 ;;
     -h|--help) echo "$usage"; exit 0 ;;
     *) echo "$usage" >&2; exit 2 ;;
   esac
@@ -68,8 +70,12 @@ git -C "$src" fetch -q origin main
 git -C "$src" show origin/main:scripts/fork/update.sh >"$root/update.sh"
 chmod +x "$root/update.sh"
 
-say "Building Ardia Fork (the first build takes a while)"
-"$root/update.sh" --force || true
+if [ -d "$app" ] && [ "$rebuild" = 0 ]; then
+  say "Ardia Fork is already installed ($(defaults read "$app/Contents/Info" CFBundleShortVersionString 2>/dev/null)); skipping the build"
+else
+  say "Building Ardia Fork (the first build takes a while)"
+  "$root/update.sh" --force || true
+fi
 [ -d "$app" ] || die "the build didn't produce $app; see the newest log in $root/logs"
 
 say "Copying your Ardia data"
