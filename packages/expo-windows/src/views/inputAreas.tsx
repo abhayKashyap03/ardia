@@ -9,6 +9,7 @@ import type {
   NativeContextMenuAreaProps,
   NativeFileDropAreaProps,
   NativeMagnifyAreaProps,
+  NativeWheelAreaProps,
   NativeMouseAreaProps,
   OutsidePressAreaProps,
   WindowProfileProps,
@@ -156,8 +157,28 @@ function dropSecondaryPress(press: SecondaryPress, why: string) {
   if (press.kind === "context") noteContextMenu(`right press on ${press.area?.purpose ?? "no context menu area"} ${why}`);
 }
 
-export const ContextMenuArea = forwardRef<View, NativeContextMenuAreaProps>(function ContextMenuArea({ onContextMenu, captureDescendants, children, ...rest }, ref) {
+function useMiddleClickMarker(onMiddleClick: NativeMouseAreaProps["onMiddleClick"]): MiddleClickMarker | undefined {
+  const latest = useRef(onMiddleClick);
+  latest.current = onMiddleClick;
+  const hasClick = typeof onMiddleClick === "function";
+  return useMemo<MiddleClickMarker | undefined>(
+    () =>
+      hasClick
+        ? {
+            click: (state: number) =>
+              latest.current?.({ nativeEvent: { shiftKey: (state & SHIFT_DOWN) !== 0, altKey: (state & ALT_DOWN) !== 0, metaKey: (state & CONTROL_DOWN) !== 0 } }),
+          }
+        : undefined,
+    [hasClick],
+  );
+}
+
+export const ContextMenuArea = forwardRef<View, NativeContextMenuAreaProps>(function ContextMenuArea(
+  { onContextMenu, onMiddleClick, middleClicks: _middleClicks, captureDescendants, children, ...rest },
+  ref,
+) {
   const purpose = contextMenuPurpose(rest);
+  const middleClick = useMiddleClickMarker(onMiddleClick);
   const latest = useRef(onContextMenu);
   latest.current = onContextMenu;
   const hasMenu = typeof onContextMenu === "function";
@@ -176,26 +197,14 @@ export const ContextMenuArea = forwardRef<View, NativeContextMenuAreaProps>(func
     [onContextMenu, purpose],
   );
   return (
-    <View {...rest} ref={ref} {...windowsEvents({ onKeyDown: key })} {...({ ardiaContextMenu: marker } as object)}>
+    <View {...rest} ref={ref} {...windowsEvents({ onKeyDown: key })} {...({ ardiaContextMenu: marker, ardiaMiddleClick: middleClick } as object)}>
       {children}
     </View>
   );
 });
 
 export const MouseArea = forwardRef<View, NativeMouseAreaProps>(function MouseArea({ path: _path, onMiddleClick, children, ...rest }, ref) {
-  const latest = useRef(onMiddleClick);
-  latest.current = onMiddleClick;
-  const hasClick = typeof onMiddleClick === "function";
-  const marker = useMemo<MiddleClickMarker | undefined>(
-    () =>
-      hasClick
-        ? {
-            click: (state: number) =>
-              latest.current?.({ nativeEvent: { shiftKey: (state & SHIFT_DOWN) !== 0, altKey: (state & ALT_DOWN) !== 0, metaKey: (state & CONTROL_DOWN) !== 0 } }),
-          }
-        : undefined,
-    [hasClick],
-  );
+  const marker = useMiddleClickMarker(onMiddleClick);
   return (
     <View {...rest} ref={ref} {...({ ardiaMiddleClick: marker } as object)}>
       {children}
@@ -347,6 +356,14 @@ export const WindowProfile = forwardRef<View, WindowProfileProps>(function Windo
   }, [profile, windowId]);
   return (
     <View {...rest} ref={ref} pointerEvents="none" style={style}>
+      {children}
+    </View>
+  );
+});
+
+export const WheelArea = forwardRef<View, NativeWheelAreaProps>(function WheelArea({ onStep: _onStep, children, ...rest }, ref) {
+  return (
+    <View {...rest} ref={ref}>
       {children}
     </View>
   );

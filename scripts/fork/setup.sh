@@ -132,7 +132,6 @@ echo "runs daily at 3:30 and at login; syncs and rebuilds every 3 days, installs
 
 say "Opening Ardia Fork"
 open "$app"
-sleep 3
 open "x-apple.systempreferences:com.apple.Desktop-Settings.extension" || true
 
 cat <<DONE

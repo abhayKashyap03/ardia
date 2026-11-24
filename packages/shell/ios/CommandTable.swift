@@ -26,8 +26,11 @@ enum CommandTable {
     case reload
     case forceReload
     case toggleTabLayout
+    case setTabLayout
     case toggleSidebarSide
     case toggleSidebar
+    case toggleCompactToolbar
+    case togglePinnedFold
     case openSplitPane
     case useSelectionForFind
     case findAndReplace
@@ -94,6 +97,7 @@ enum CommandTable {
     case reportProblem
     case keyboardShortcuts
     case copyDiagnostics
+    case copyLastFreeze
     case toolTour
     case videoTour
     case releaseNotes
@@ -142,8 +146,13 @@ enum CommandTable {
     "reload": "Refresh",
     "forceReload": "Force Refresh the Page",
     "toggleTabLayout": "Show Tabs in Sidebar",
+    "setTabLayout:sidebarLeft": "Sidebar on Left",
+    "setTabLayout:sidebarRight": "Sidebar on Right",
+    "setTabLayout:top": "Top Tab Bar",
     "toggleSidebarSide": "Sidebar on Right",
     "toggleSidebar": "Auto-Hide Tabs",
+    "toggleCompactToolbar": "Compact Toolbar",
+    "togglePinnedFold": "Collapse Pinned Tabs",
     "openSplitPane": "Open Split Pane",
     "useSelectionForFind": "Use Selection for Find",
     "findAndReplace": "Find and Replace…",
@@ -214,6 +223,7 @@ enum CommandTable {
     "reportProblem": "Report a Problem…",
     "keyboardShortcuts": "Keyboard Shortcuts",
     "copyDiagnostics": "Copy Diagnostics",
+    "copyLastFreeze": "Copy Last Freeze",
     "toolTour": "Tool Tour",
     "videoTour": "Video Tour",
     "releaseNotes": "Release Notes",
@@ -323,7 +333,7 @@ enum CommandTable {
     "std:cut:": [("x", [.command])],
     "std:copy:": [("c", [.command])],
     "std:paste:": [("v", [.command])],
-    "std:pasteAndMatchStyle:": [("v", [.shift, .command])],
+    "std:pasteAndMatchStyle:": [("v", [.shift, .command]), ("v", [.option, .shift, .command])],
     "std:selectAll:": [("a", [.command])],
     "std:showGuessPanel:": [(":", [.command])],
     "std:checkSpelling:": [(";", [.command])],

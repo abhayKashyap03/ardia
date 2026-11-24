@@ -4,7 +4,7 @@ import { GlassFill, GlassLookContext, liquidGlass, type GlassState } from "../..
 import { useTheme } from "../../ui/theme";
 import { ThemeOverride } from "../../ui/ThemeOverride";
 import { capsule, font, space } from "../../ui/tokens";
-import { curve } from "../../ui/motion";
+import { curve, nativeLoop } from "../../ui/motion";
 import { mix } from "../../../lib/color";
 import { useBasePaletteValue } from "../../../state/config/hooks";
 import { DEFAULT_SETTINGS, type Settings } from "../../../state/settings/settings";
@@ -35,9 +35,9 @@ const GLINTS = [
   { x: 300, y: 12, w: 70 },
 ] as const;
 
-export type StyleChoice = { glass: boolean; tint: number };
+type StyleChoice = { glass: boolean; tint: number };
 
-export function styleChoiceOf(settings: Partial<Settings>, hovered: Settings["interfaceStyle"] | null): StyleChoice {
+function styleChoiceOf(settings: Partial<Settings>, hovered: Settings["interfaceStyle"] | null): StyleChoice {
   const style = hovered ?? settings.interfaceStyle ?? DEFAULT_SETTINGS.interfaceStyle;
   const tinted = settings.glassTintWithTheme ?? DEFAULT_SETTINGS.glassTintWithTheme;
   return { glass: style === "glass", tint: tinted ? (settings.glassTintAmount ?? DEFAULT_SETTINGS.glassTintAmount) : 0 };
@@ -46,8 +46,10 @@ export function styleChoiceOf(settings: Partial<Settings>, hovered: Settings["in
 function useSunTravel() {
   const travel = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const leg = (toValue: number) => Animated.timing(travel, { toValue, duration: styleSceneMs.sunLeg, easing: curve.pulse, useNativeDriver: true, isInteraction: false });
-    const loop = Animated.loop(Animated.sequence([leg(1), leg(0)]));
+    const loop = nativeLoop(travel, [
+      { to: 1, ms: styleSceneMs.sunLeg, easing: curve.pulse },
+      { to: 0, ms: styleSceneMs.sunLeg, easing: curve.pulse },
+    ]);
     loop.start();
     return () => loop.stop();
   }, [travel]);

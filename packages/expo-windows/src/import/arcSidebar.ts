@@ -3,13 +3,13 @@ import { folder, ImportFailure, link, type BookmarkNode, type BookmarkRole, type
 
 type Json = Record<string, unknown>;
 
-export type ArcSidebar = { spaces: SpaceSuggestion[]; favorites: Record<string, ImportedTab[]> };
+export type ArcSidebar = { spaces: SpaceSuggestion[]; favorites: Record<string, ImportedTab[]>; iconItems: Record<string, string> };
 
 const MAX_DEPTH = 64;
 const SPLIT_ROLE: BookmarkRole = "split";
 const APPLE_EPOCH_SECONDS = 978_307_200;
 
-export const THEME_LIMITS = { bytes: 64 * 1024, depth: 12, array: 4, keys: 32, string: 256, nodes: 2_048 };
+const THEME_LIMITS = { bytes: 64 * 1024, depth: 12, array: 4, keys: 32, string: 256, nodes: 2_048 };
 
 const record = (value: unknown): Json | undefined => (typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Json) : undefined);
 const objects = (value: unknown): Json[] => (Array.isArray(value) ? value.map(record).filter((v): v is Json => v !== undefined) : []);
@@ -33,7 +33,7 @@ function utf8Prefix(s: string, bytes: number): string {
   return new TextDecoder().decode(encoded.subarray(0, end));
 }
 
-export function boundedTheme(value: unknown): unknown {
+function boundedTheme(value: unknown): unknown {
   const budget = { nodes: THEME_LIMITS.nodes, bytes: THEME_LIMITS.bytes };
   const spend = (nodes: number, bytes: number) => {
     budget.nodes -= nodes;
@@ -88,7 +88,7 @@ function sortedJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function themeJson(theme: unknown): string | undefined {
+function themeJson(theme: unknown): string | undefined {
   if (theme === undefined || theme === null || typeof theme !== "object") return undefined;
   const out = sortedJson(theme);
   return utf8Length(out) <= THEME_LIMITS.bytes ? out : undefined;
@@ -127,11 +127,11 @@ function firstColor(value: unknown, depth: number): string | undefined {
   return undefined;
 }
 
-export function midTone(theme: unknown): string | undefined {
+function midTone(theme: unknown): string | undefined {
   return color(record(record(theme)?.primaryColorPalette)?.midTone) ?? firstColor(theme, 0);
 }
 
-export function gradient(theme: unknown): string[] | undefined {
+function gradient(theme: unknown): string[] | undefined {
   const find = (value: unknown, depth: number): unknown[] | undefined => {
     if (depth >= 12) return undefined;
     if (Array.isArray(value)) {
@@ -163,7 +163,7 @@ function emoji(icon: Json | undefined): string | undefined {
   return undefined;
 }
 
-export function profileDirectory(value: unknown): string | undefined {
+function profileDirectory(value: unknown): string | undefined {
   const d = record(value);
   if (!d) return undefined;
   if (d.default !== undefined) return "Default";
@@ -325,9 +325,14 @@ export function parseArcSidebar(raw: string): ArcSidebar {
   const containers = record(record(top)?.sidebar)?.containers;
   if (!Array.isArray(containers)) throw new ImportFailure("unreadable", "StorableSidebar.json is not an Arc sidebar");
   const box = mainContainer(containers);
-  const out: ArcSidebar = { spaces: [], favorites: {} };
+  const out: ArcSidebar = { spaces: [], favorites: {}, iconItems: {} };
   if (!box) return out;
   const items = new Items(objects(box.items));
+  for (const item of objects(box.items)) {
+    const id = text(item.id);
+    const url = tabOf(item, false)?.url;
+    if (id !== undefined && url !== undefined && !Object.prototype.hasOwnProperty.call(out.iconItems, url)) out.iconItems[url] = id;
+  }
   let untitled = 0;
   for (const space of objects(box.spaces)) {
     const id = text(space.id);

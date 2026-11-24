@@ -1,26 +1,23 @@
 #!/bin/bash
 set -uo pipefail
 
-usage="usage: update.sh [--force] [--install-only] [--cli-only]
+usage="usage: update.sh [--force] [--install-only]
 Keeps /Applications/Ardia Fork.app current. Every 3 days it merges mantrakp04/ardia into your fork's main and pushes it,
-rebuilds the daily branch on the newest upstream commit whose engine has a download, replays your fork's own commits on
-top, builds it signed with your Xcode team, and installs it while the app is closed. Every run installs a waiting build.
+rebuilds the daily branch on the newest upstream commit whose engine has a download, applies your fork's changes
+(main against upstream's main) on top, builds it signed with your Xcode team, and installs it while the app is closed. Every run installs a waiting build.
 Merges and cherry-picks commit with your global git name and email.
 --force         sync and rebuild now
---install-only  only install a build that is waiting for the app to close
---cli-only      only (re)install the ardia command from the last build's source
-Each build also installs the fork's ardia command (~/.ardia-fork/cli, linked from ~/.local/bin/ardia)."
+--install-only  only install a build that is waiting for the app to close"
 
 root="$HOME/.ardia-fork"
 src="$root/src"
 app="/Applications/Ardia Fork.app"
 pending="$root/pending/Ardia Fork.app"
 derived="$root/derived"
-force=0 install_only=0 cli_only=0
+force=0 install_only=0
 for arg in "$@"; do
   case "$arg" in
     --force) force=1 ;;
-    --cli-only) cli_only=1 ;;
     --install-only) install_only=1 ;;
     -h|--help) echo "$usage"; exit 0 ;;
     *) echo "$usage" >&2; exit 2 ;;
@@ -69,37 +66,8 @@ signature_expires_soon() {
   [ $((expiry - $(date +%s))) -lt $((3 * 86400)) ]
 }
 
-install_cli() {
-  local python="" candidate venv="$root/cli" link="$HOME/.local/bin/ardia"
-  for candidate in python3.13 python3.12 python3.11 python3.10 python3; do
-    if command -v "$candidate" >/dev/null && "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then
-      python=$(command -v "$candidate"); break
-    fi
-  done
-  [ -n "$python" ] || { notify "The ardia command needs Python 3.10 or newer (brew install python); skipped it."; return 1; }
-  rm -rf "$venv.old"
-  [ -d "$venv" ] && mv "$venv" "$venv.old"
-  if ! { "$python" -m venv "$venv" \
-    && "$venv/bin/python3" -m pip install -q --disable-pip-version-check --require-hashes -r "$src/apps/cli/requirements.lock" \
-    && "$venv/bin/python3" -m pip install -q --disable-pip-version-check --no-deps "$src/apps/cli"; }; then
-    rm -rf "$venv"
-    [ -d "$venv.old" ] && mv "$venv.old" "$venv"
-    notify "Couldn't install the ardia command. Log: $log"
-    return 1
-  fi
-  rm -rf "$venv.old"
-  mkdir -p "$HOME/.local/bin"
-  if [ -e "$link" ] && [ ! -L "$link" ]; then
-    notify "$link is a file, not a link; left it alone. The fork's ardia is at $venv/bin/ardia."
-    return 1
-  fi
-  ln -sfn "$venv/bin/ardia" "$link"
-  echo "ardia command installed from $(git -C "$src" log -1 --format=%h)"
-}
-
 install_pending
 [ "$install_only" = 1 ] && exit 0
-if [ "$cli_only" = 1 ]; then install_cli; exit $?; fi
 
 last_sync=$(cat "$root/last-sync" 2>/dev/null || echo 0)
 if [ "$force" = 0 ] && [ $(($(date +%s) - last_sync)) -lt $((3 * 86400 - 3600)) ] && ! signature_expires_soon; then
@@ -125,13 +93,13 @@ fi
 table=$(git show upstream/main:packages/ardiacore/prebuilt-engines.tsv | awk '{ print $1 }')
 base=""
 for commit in $(git rev-list --first-parent upstream/main | head -800); do
-  key=$(engine/engine-key.sh "$commit" 2>/dev/null) || continue
+  key=$(engine/engine-key.sh --platform macos "$commit" 2>/dev/null) || continue
   if grep -qx "$key" <<<"$table"; then base=$commit; break; fi
 done
 [ -n "$base" ] || { notify "No upstream commit with a downloadable engine; kept the current app."; exit 1; }
 
-mine=$(git log --no-color --no-ext-diff --reverse --no-merges -p upstream/main..main | git patch-id --stable | awk '!seen[$1]++ { print $2 }')
-want=$(echo "$base $mine $(cat "$root/team" 2>/dev/null)" | shasum -a 256 | cut -c1-16)
+git diff --binary "$(git merge-base upstream/main main)" main >"$root/fork.patch"
+want=$( { echo "$base $(cat "$root/team" 2>/dev/null)"; cat "$root/fork.patch"; } | shasum -a 256 | cut -c1-16)
 if [ "$force" = 0 ] && [ "$(cat "$root/built" 2>/dev/null)" = "$want" ] && [ -d "$app" ] && ! signature_expires_soon; then
   date +%s >"$root/last-sync"
   echo "already built $(git log -1 --format='%h %s' "$base")"
@@ -139,15 +107,12 @@ if [ "$force" = 0 ] && [ "$(cat "$root/built" 2>/dev/null)" = "$want" ] && [ -d 
 fi
 
 git checkout -q -f -B daily "$base"
-for commit in $mine; do
-  git cherry-pick "$commit" >/dev/null 2>&1 && continue
-  if [ -z "$(git diff --name-only --diff-filter=U)" ] && git diff --cached --quiet; then
-    git cherry-pick --skip >/dev/null 2>&1 && continue
-  fi
-  git cherry-pick --abort
-  notify "Your change \"$(git log -1 --format=%s "$commit")\" doesn't apply on the newest buildable Ardia; kept the current app."
+if [ -s "$root/fork.patch" ] && ! git apply --3way --index "$root/fork.patch"; then
+  git reset -q --hard
+  notify "Your fork's changes don't apply on the newest buildable Ardia ($(git log -1 --format=%h "$base")); kept the current app. Log: $log"
   exit 1
-done
+fi
+git commit -q --allow-empty -m "Fork changes on $(git log -1 --format=%h "$base")"
 
 pnpm install --frozen-lockfile || { notify "pnpm install failed; kept the current app. Log: $log"; exit 1; }
 (cd apps/browser/macos && pod install) || { notify "pod install failed; kept the current app. Log: $log"; exit 1; }
@@ -166,9 +131,8 @@ fi
 rm -rf "$pending"
 ditto "$derived/Build/Products/Release/Ardia.app" "$pending" || { notify "Couldn't copy the build; kept the current app."; exit 1; }
 echo "$want" >"$root/built"
-install_cli || true
 date +%s >"$root/last-sync"
 cp scripts/fork/update.sh "$root/update.sh.new" && mv "$root/update.sh.new" "$root/update.sh" && chmod +x "$root/update.sh"
 [ "$signed" = 0 ] && notify "Built without your Xcode team (signing failed), so Touch ID passkeys are off in this build. Log: $log"
 install_pending
-echo "built $(git log -1 --format='%h %s' "$base") with $(echo "$mine" | grep -c .) fork commits"
+echo "built $(git log -1 --format='%h %s' "$base") with the fork's changes from main $(git log -1 --format=%h main)"

@@ -56,7 +56,7 @@ inline bool Truthy(std::string_view value) noexcept {
 
 inline std::vector<std::string_view> const &InstanceKeys() noexcept {
   static const std::vector<std::string_view> keys{
-      "jsLocation", "chromiumSwitches", "downloadsDir", "updateFeed", "allowAudio", "allowOcclusion", "releaseNotes",
+      "jsLocation", "chromiumSwitches", "downloadsDir", "updateFeed", "updateKey", "allowAudio", "allowOcclusion", "releaseNotes",
       "cliHome", "cliBinDir", "cliUrl", "syncFolder", "sharedFolders", "importSourceDir", "importSafariHome",
   };
   return keys;
@@ -70,13 +70,14 @@ inline std::vector<std::string_view> const &TestKeys() noexcept {
       "pipSelfTest", "pipHover", "selfCheckOnly", "meadowWebGL", "meadowReadyMs", "introStartDelayMs", "fakeFullScreenMs", "shadersKeyWindow", "peekStrict", "importSecret", "importDiaBundleId", "importDiaWindows",
       "cliInstallScript", "legacySource", "legacyCrashAfter", "bangsUrl", "onboarding", "whatsNew", "telemetry",
       "liveMock", "calendarFixture", "appMenu", "appDialog", "loginsTimeout", "externalAppLaunch", "nativeDragRefused", "httpPages", "selfCheckStage",
+      "keyHold", "keyHoldReadyMs",
   };
   return keys;
 }
 
 inline std::vector<std::string_view> const &KeysWhoseValuesHoldCommas() noexcept {
   static const std::vector<std::string_view> keys{
-      "chromiumSwitches", "downloadsDir", "updateFeed", "cliHome", "cliBinDir", "cliUrl", "syncFolder", "sharedFolders", "importSourceDir",
+      "chromiumSwitches", "downloadsDir", "updateFeed", "updateKey", "cliHome", "cliBinDir", "cliUrl", "syncFolder", "sharedFolders", "importSourceDir",
       "importSafariHome", "importSecret", "cliInstallScript", "legacySource", "bangsUrl", "liveMock",
   };
   return keys;
@@ -159,7 +160,7 @@ struct Config {
 };
 
 inline std::vector<std::string_view> const &TestOnlyInstanceKeys() noexcept {
-  static const std::vector<std::string_view> keys{"updateFeed", "importSourceDir", "importSafariHome"};
+  static const std::vector<std::string_view> keys{"updateFeed", "updateKey", "importSourceDir", "importSafariHome"};
   return keys;
 }
 

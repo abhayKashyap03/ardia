@@ -128,11 +128,16 @@ static NSString *AppDataDirectory() {
   return [support URLByAppendingPathComponent:NSBundle.mainBundle.bundleIdentifier ?: @"Ardia"].path;
 }
 
+static bool IsWebLink(NSURL *link) {
+  NSString *scheme = link.scheme.lowercaseString;
+  return link.host.length && ([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"]);
+}
+
 static void ParkLaunchLinks(NSArray<NSURL *> *links, NSString *linkProfile) {
   if (!links.count || !linkProfile || LaunchTabSwitchedOff() || HoldsIncomingLinks()) return;
   NSMutableArray<NSString *> *urls = [NSMutableArray array];
   for (NSURL *link in links)
-    if (!link.isFileURL && link.absoluteString.length) [urls addObject:link.absoluteString];
+    if (IsWebLink(link)) [urls addObject:link.absoluteString];
   [ArdiaWebView startLinkTabs:urls profile:linkProfile];
 }
 
@@ -243,7 +248,9 @@ static void TryEarlyWindow() {
   NSString *focused = session.focusedWindowId, *key = session.launchTabId, *url = session.launchTabURL, *profile = session.launchTabProfile;
   if (!focused || !key) return;
   NSDictionary *window = [session windowWithId:focused];
-  if (!window || [window[@"incognito"] boolValue] || window[@"kind"] || ![window[@"frame"] isKindOfClass:NSArray.class]) return;
+  if (!window || ![window[@"incognito"] isKindOfClass:NSNumber.class] && window[@"incognito"] || [window[@"incognito"] isEqual:@YES] || window[@"kind"] ||
+      ![window[@"frame"] isKindOfClass:NSArray.class])
+    return;
   if (![window[@"tabIds"] isKindOfClass:NSArray.class] || ![window[@"tabIds"] containsObject:key]) return;
   for (NSDictionary *split in session.splits)
     if ([[session tabIdsOfSplit:split] containsObject:key]) return;
@@ -346,12 +353,21 @@ void StartEarlyWindow() {
   return [launch reached:ArdiaLaunchAppKitDidFinish] ? @(launch.launchedHidden) : nil;
 }
 
++ (nullable NSString *)launchSource {
+  ArdiaLaunchSequence *launch = ArdiaLaunchSequence.shared;
+  if (![launch reached:ArdiaLaunchAppKitDidFinish]) return nil;
+  if (launch.launchedHidden) return @"login_item";
+  return launch.launchedForDocuments ? @"documents" : @"user";
+}
+
 + (NSDictionary<NSString *, NSNumber *> *)launchMarks {
   ArdiaLaunchSequence *launch = ArdiaLaunchSequence.shared;
   NSMutableDictionary<NSString *, NSNumber *> *marks = [NSMutableDictionary dictionary];
   if (launch.mainStartedAt > 0) marks[@"mainStarted"] = @(launch.mainStartedAt);
   if (launch.startupPreparedAt > 0) marks[@"startupPrepared"] = @(launch.startupPreparedAt);
   if (launch.chromiumEnteredAt > 0) marks[@"chromiumEntered"] = @(launch.chromiumEnteredAt);
+  if (launch.appKitWillFinishAt > 0) marks[@"appKitWillFinish"] = @(launch.appKitWillFinishAt);
+  if (launch.appKitDidFinishAt > 0) marks[@"appKitDidFinish"] = @(launch.appKitDidFinishAt);
   if (launch.engineStartedAt > 0) marks[@"engineStarted"] = @(launch.engineStartedAt);
   if (launch.reactNativeStartedAt > 0) marks[@"reactNativeStarted"] = @(launch.reactNativeStartedAt);
   if (launch.earlyWindowShownAt > 0) marks[@"earlyWindowShown"] = @(launch.earlyWindowShownAt);
@@ -417,6 +433,7 @@ void StartEarlyWindow() {
                                                   object:nil
                                                    queue:nil
                                               usingBlock:^(NSNotification *) {
+                                                ArdiaLaunchSequence.shared.appKitWillFinishAt = LaunchNowMs();
                                                 [ArdiaLaunchSequence.shared reach:ArdiaLaunchAppKitWillFinish];
                                               }];
   if ([config traced:@"visibility"]) {
@@ -447,6 +464,7 @@ void StartEarlyWindow() {
                                                 const BOOL hidden = event.eventID == kAEOpenApplication &&
                                                                     [event paramDescriptorForKeyword:keyAEPropData].enumCodeValue == keyAELaunchedAsLogInItem;
                                                 const BOOL documents = event && !(event.eventClass == kCoreEventClass && event.eventID == kAEOpenApplication);
+                                                ArdiaLaunchSequence.shared.appKitDidFinishAt = LaunchNowMs();
                                                 [ArdiaLaunchSequence.shared appKitFinishedHidden:hidden forDocuments:documents];
                                               }];
 
@@ -454,7 +472,7 @@ void StartEarlyWindow() {
       "--user-data-dir=" + std::string(gDataDirectory.UTF8String),
       "--enable-smooth-scrolling",
       "--disable-stack-profiler",
-      "--disable-features=MacAppCodeSignClone,DevToolsAcceptDebuggingConnections,AutofillAiWalletPrivatePasses,SettingsGlowupJourneys",
+      "--disable-features=MacAppCodeSignClone,DevToolsAcceptDebuggingConnections,AutofillAiWalletPrivatePasses,SettingsGlowupJourneys,AsyncLiveResize",
       "--enable-features=WebContentsDiscard,BrowserInitiatedAutomaticPictureInPicture,MacOcclusionForceShutoff,ImprovedStartupBestEffortDelay:StartupDelayStopOnLoadingTimedOut/true,"
       "CPUMeasurementInFreezingPolicy:freezing_visible_protection_time/0s",
       "--profile-directory=Default",

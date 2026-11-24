@@ -1,4 +1,5 @@
 import type { Settings } from "../settings/settings";
+import type { CtrlTabPreset } from "../commands/ctrlTabKeys";
 
 export type BrowserSourceId = "arc" | "dia" | "chrome" | "safari" | "firefox" | "zen" | "brave" | "edge" | "helium" | "chromium" | "vivaldi" | "opera" | "fresh";
 
@@ -39,9 +40,7 @@ const CLASSIC_TABS: Partial<Settings> = {
   hideToolbarWhileScrolling: false,
   bookmarksBar: "newTab",
   searchEngine: "google",
-  commandBarPreference: "search",
   openLinksInLittleArdia: false,
-  profileSwitcherIcons: false,
   peekLinksToOtherSites: false,
   newTabLinksOpenIn: "tab",
 };
@@ -66,9 +65,7 @@ export const PRESETS: Record<Preset, Partial<Settings>> = {
     hideToolbarWhileScrolling: true,
     bookmarksBar: "never",
     searchEngine: "google",
-    commandBarPreference: "website",
     openLinksInLittleArdia: true,
-    profileSwitcherIcons: false,
     peekLinksToOtherSites: true,
     newTabLinksOpenIn: "peek",
   },
@@ -91,9 +88,7 @@ export const PRESETS: Record<Preset, Partial<Settings>> = {
     hideToolbarWhileScrolling: true,
     bookmarksBar: "never",
     searchEngine: "google",
-    commandBarPreference: "website",
     openLinksInLittleArdia: true,
-    profileSwitcherIcons: true,
     peekLinksToOtherSites: true,
     newTabLinksOpenIn: "peek",
   },
@@ -116,9 +111,7 @@ export const PRESETS: Record<Preset, Partial<Settings>> = {
     hideToolbarWhileScrolling: false,
     bookmarksBar: "never",
     searchEngine: "google",
-    commandBarPreference: "search",
     openLinksInLittleArdia: false,
-    profileSwitcherIcons: true,
     peekLinksToOtherSites: true,
     newTabLinksOpenIn: "peek",
   },
@@ -131,7 +124,22 @@ export const PRESETS: Record<Preset, Partial<Settings>> = {
   chromium: CLASSIC_TABS,
   vivaldi: CLASSIC_TABS,
   opera: CLASSIC_TABS,
-  fresh: { addressBar: "sidebar", commandBarPlacement: "centred", newTabPosition: "nextToCurrent", newTabButtonPosition: "bottom", profileSwitcherIcons: false },
+  fresh: { addressBar: "sidebar", commandBarPlacement: "centred", newTabPosition: "nextToCurrent", newTabButtonPosition: "bottom" },
+};
+
+export const CTRL_TAB_LIKE: Partial<Record<Preset, CtrlTabPreset>> = {
+  arc: "switcher",
+  dia: "switcher",
+  vivaldi: "switcher",
+  opera: "switcher",
+  chrome: "step",
+  safari: "step",
+  firefox: "step",
+  zen: "step",
+  brave: "step",
+  edge: "step",
+  helium: "step",
+  chromium: "step",
 };
 
 export const setsUpLikeBrowser = (source: BrowserSourceId | null): source is Exclude<BrowserSourceId, "fresh"> => !!source && source !== "fresh";

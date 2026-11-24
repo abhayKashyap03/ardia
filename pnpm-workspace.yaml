@@ -1,9 +1,12 @@
 packages:
   - apps/*
   - packages/*
+  - "!apps/linux"
   - "!apps/site"
   - "!apps/dashboard"
   - "!apps/videos"
+  - "!apps/phone"
+  - "!packages/phone"
 
 nodeLinker: hoisted
 
