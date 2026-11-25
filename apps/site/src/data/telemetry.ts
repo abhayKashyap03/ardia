@@ -112,5 +112,15 @@ export const FLAGS = {
     ],
     experiment: true,
   },
+  "donate-floor": {
+    id: 1,
+    version: 1,
+    rollout: 100,
+    variants: [
+      { key: "ten", rollout: 50 },
+      { key: "five", rollout: 50 },
+    ],
+    experiment: true,
+  },
 } as const;
 export type FlagKey = keyof typeof FLAGS;
