@@ -1,24 +1,28 @@
 #!/bin/bash
 set -uo pipefail
 
-usage="usage: update.sh [--force] [--install-only]
+usage="usage: update.sh [--force] [--install-only] [--embed-plugins]
 Keeps /Applications/Ardia Fork.app current. Every 3 days it merges mantrakp04/ardia into your fork's main and pushes it,
 rebuilds the daily branch on the newest upstream commit whose engine has a download, applies your fork's changes
 (main against upstream's main) on top, builds it signed with your Xcode team, and installs it while the app is closed. Every run installs a waiting build.
 Merges and cherry-picks commit with your global git name and email.
 --force         sync and rebuild now
---install-only  only install a build that is waiting for the app to close"
+--install-only  only install a build that is waiting for the app to close
+--embed-plugins only write the official plugin list into the installed app (quit it first) and re-sign it
+Every build gets the official plugin list and program registry that upstream's release export writes into
+Info.plist (scripts/release/official-plugins.py), then is re-signed with the identity Xcode signed it with."
 
 root="$HOME/.ardia-fork"
 src="$root/src"
 app="/Applications/Ardia Fork.app"
 pending="$root/pending/Ardia Fork.app"
 derived="$root/derived"
-force=0 install_only=0
+force=0 install_only=0 embed_only=0
 for arg in "$@"; do
   case "$arg" in
     --force) force=1 ;;
     --install-only) install_only=1 ;;
+    --embed-plugins) embed_only=1 ;;
     -h|--help) echo "$usage"; exit 0 ;;
     *) echo "$usage" >&2; exit 2 ;;
   esac
@@ -66,8 +70,26 @@ signature_expires_soon() {
   [ $((expiry - $(date +%s))) -lt $((3 * 86400)) ]
 }
 
+embed_official_plugins() {
+  local bundle="$1" plist="$1/Contents/Info.plist" pin registry identity
+  pin=$(python3 -I "$src/scripts/release/official-plugins.py" signed-pin) \
+    && registry=$(python3 -I "$src/scripts/release/official-plugins.py" registry) \
+    && plutil -replace ArdiaOfficialPlugins -json "$pin" "$plist" \
+    && plutil -replace ArdiaProgramRegistry -json "$registry" "$plist" \
+    || { notify "Couldn't write the official plugin list into the app; Settings › Plugins will stay empty. Log: $log"; return 1; }
+  identity=$(codesign -dvv "$bundle" 2>&1 | sed -n 's/^Authority=\(Apple Development: .*\)$/\1/p' | head -1)
+  codesign --force --sign "${identity:--}" --preserve-metadata=entitlements,requirements,flags "$bundle" \
+    || { notify "Couldn't re-sign the app after adding the plugin list. Log: $log"; return 1; }
+  echo "official plugins embedded, signed by ${identity:-ad hoc}"
+}
+
 install_pending
 [ "$install_only" = 1 ] && exit 0
+if [ "$embed_only" = 1 ]; then
+  running && { notify "Quit Ardia Fork first, then run update.sh --embed-plugins again."; exit 1; }
+  embed_official_plugins "$app"
+  exit $?
+fi
 
 last_sync=$(cat "$root/last-sync" 2>/dev/null || echo 0)
 if [ "$force" = 0 ] && [ $(($(date +%s) - last_sync)) -lt $((3 * 86400 - 3600)) ] && ! signature_expires_soon; then
@@ -130,6 +152,7 @@ fi
 
 rm -rf "$pending"
 ditto "$derived/Build/Products/Release/Ardia.app" "$pending" || { notify "Couldn't copy the build; kept the current app."; exit 1; }
+embed_official_plugins "$pending" || true
 echo "$want" >"$root/built"
 date +%s >"$root/last-sync"
 cp scripts/fork/update.sh "$root/update.sh.new" && mv "$root/update.sh.new" "$root/update.sh" && chmod +x "$root/update.sh"
