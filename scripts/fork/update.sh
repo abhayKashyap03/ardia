@@ -119,7 +119,7 @@ pnpm install --frozen-lockfile || { notify "pnpm install failed; kept the curren
 
 build() {
   xcodebuild -workspace apps/browser/macos/Ardia.xcworkspace -scheme Ardia-macOS -configuration Release \
-    -derivedDataPath "$derived" -destination 'platform=macOS,arch=arm64' -quiet "$@" build
+    -derivedDataPath "$derived" -destination 'platform=macOS,arch=arm64' ARCHS=arm64 -quiet "$@" build
 }
 team=$(cat "$root/team" 2>/dev/null || true)
 signed=1
